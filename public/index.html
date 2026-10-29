@@ -192,7 +192,7 @@
     </div>
   </div>
 
-  <script>
+<script>
     const form = document.getElementById('shareForm');
     const resultArea = document.getElementById('resultArea');
     const qrcodeContainer = document.getElementById('qrcode');
@@ -232,7 +232,6 @@
 
         currentShareUrl = data.shareUrl || `${window.location.origin}/view/${data.id}`;
 
-        // Clear container and render QR reliably
         qrcodeContainer.innerHTML = '';
         new QRCode(qrcodeContainer, {
           text: currentShareUrl,
@@ -254,7 +253,7 @@
       }
     });
 
-    // Helper: extract canvas element safely
+    // Helper: Safely retrieve the QR canvas or extract from img
     function getQrCanvas() {
       const canvas = qrcodeContainer.querySelector('canvas');
       if (canvas) return canvas;
@@ -271,21 +270,30 @@
       return null;
     }
 
-    // SHARE URL
+    // SHARE URL (Works on Mobile Share Sheet & Desktop Clipboard)
     document.getElementById('shareUrlBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('shareUrlBtn');
       if (navigator.share) {
         try {
           await navigator.share({
-            title: 'Quick-Share Drop',
-            text: 'Here is your 24-hour quick-share URL:',
+            title: 'Quick-Share Link',
+            text: 'Access this temporary share link:',
             url: currentShareUrl
           });
+          return;
         } catch (err) {
-          if (err.name !== 'AbortError') console.error(err);
+          if (err.name === 'AbortError') return; // User closed sheet
         }
-      } else {
+      }
+
+      // Universal Desktop Fallback: Copy to clipboard
+      try {
         await navigator.clipboard.writeText(currentShareUrl);
-        alert('Direct sharing unavailable. URL copied to clipboard!');
+        const originalText = btn.innerText;
+        btn.innerText = '✅ Copied to Clipboard!';
+        setTimeout(() => btn.innerText = originalText, 2500);
+      } catch (err) {
+        prompt('Copy this link:', currentShareUrl);
       }
     });
 
@@ -298,15 +306,15 @@
         btn.innerText = '✅ Copied URL!';
         setTimeout(() => btn.innerText = orig, 2000);
       } catch (err) {
-        alert('Failed to copy URL.');
+        prompt('Copy this link:', currentShareUrl);
       }
     });
 
-    // SHARE QR CODE
+    // SHARE QR CODE (Native Mobile Share Sheet with Desktop Auto-Download Fallback)
     document.getElementById('shareQrBtn').addEventListener('click', () => {
       const canvas = getQrCanvas();
       if (!canvas) {
-        alert('QR code not ready yet.');
+        alert('QR code is still rendering. Please try again in a second.');
         return;
       }
 
@@ -314,19 +322,30 @@
         if (!blob) return;
         const file = new File([blob], 'quick-share-qr.png', { type: 'image/png' });
 
+        // Check if device supports sharing image files directly
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
               files: [file],
               title: 'Quick-Share QR Code',
-              text: 'Scan this QR code to access the files.'
+              text: 'Scan this QR code to access my file/text drop.'
             });
+            return;
           } catch (err) {
-            if (err.name !== 'AbortError') console.error(err);
+            if (err.name === 'AbortError') return;
           }
-        } else {
-          alert('Sharing image files is unsupported on this browser. Use "Save QR Image" instead.');
         }
+
+        // Universal Fallback: Download the QR image directly
+        const link = document.createElement('a');
+        link.download = 'quick-share-qr.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        const btn = document.getElementById('shareQrBtn');
+        const orig = btn.innerText;
+        btn.innerText = '💾 Downloaded QR!';
+        setTimeout(() => btn.innerText = orig, 2500);
       }, 'image/png');
     });
 
@@ -334,7 +353,7 @@
     document.getElementById('copyQrBtn').addEventListener('click', () => {
       const canvas = getQrCanvas();
       if (!canvas) {
-        alert('QR code not ready yet.');
+        alert('QR code is not ready yet.');
         return;
       }
 
@@ -346,15 +365,20 @@
           ]);
           const btn = document.getElementById('copyQrBtn');
           const orig = btn.innerText;
-          btn.innerText = '✅ Copied QR!';
+          btn.innerText = '✅ Copied QR Image!';
           setTimeout(() => btn.innerText = orig, 2000);
         } catch (err) {
-          alert('Direct image copy not supported in this browser. Please use "Save QR Image".');
+          // If browser forbids writing image blobs to clipboard, fallback to download
+          const link = document.createElement('a');
+          link.download = 'quick-share-qr.png';
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          alert('Image clipboard copy is not supported in your browser. The QR code was downloaded instead.');
         }
       }, 'image/png');
     });
 
-    // SAVE QR IMAGE
+    // SAVE QR IMAGE DIRECTLY
     document.getElementById('downloadQrBtn').addEventListener('click', () => {
       const canvas = getQrCanvas();
       if (!canvas) return;
