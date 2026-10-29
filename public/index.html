@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quick-Share | 24-Hour Temporary Drop</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <!-- Load QRCode library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --bg: #0d1117;
@@ -95,12 +96,16 @@
       text-align: center;
       display: none;
     }
-    #qrcode canvas {
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 1rem auto;
+    }
+    #qrcode img, #qrcode canvas {
       border-radius: 8px;
       padding: 8px;
       background: #ffffff;
-      margin: 0.75rem auto;
-      max-width: 100%;
     }
     .url-preview {
       font-size: 0.8rem;
@@ -174,17 +179,14 @@
       <div class="url-preview" id="linkDisplay"></div>
       
       <div class="action-group">
-        <!-- URL Options -->
         <div class="btn-row">
           <button class="btn-action" id="shareUrlBtn" type="button">📤 Share URL</button>
           <button class="btn-action" id="copyUrlBtn" type="button">📋 Copy URL</button>
         </div>
-        <!-- QR Options -->
         <div class="btn-row">
           <button class="btn-action" id="shareQrBtn" type="button">📤 Share QR</button>
           <button class="btn-action" id="copyQrBtn" type="button">📋 Copy QR</button>
         </div>
-        <!-- Download Image -->
         <button class="btn-action btn-save" id="downloadQrBtn" type="button">💾 Save QR Image</button>
       </div>
     </div>
@@ -195,19 +197,17 @@
     const resultArea = document.getElementById('resultArea');
     const qrcodeContainer = document.getElementById('qrcode');
     const linkDisplay = document.getElementById('linkDisplay');
-    const shareUrlBtn = document.getElementById('shareUrlBtn');
-    const copyUrlBtn = document.getElementById('copyUrlBtn');
-    const shareQrBtn = document.getElementById('shareQrBtn');
-    const copyQrBtn = document.getElementById('copyQrBtn');
-    const downloadQrBtn = document.getElementById('downloadQrBtn');
+    const submitBtn = document.getElementById('submitBtn');
 
     let currentShareUrl = '';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      const file = document.getElementById('fileInput').files[0];
-      const text = document.getElementById('textInput').value.trim();
+
+      const fileInput = document.getElementById('fileInput');
+      const textInput = document.getElementById('textInput');
+      const file = fileInput.files[0];
+      const text = textInput.value.trim();
 
       if (!file && !text) {
         alert('Please choose a file or enter text to share.');
@@ -218,8 +218,8 @@
       if (file) formData.append('file', file);
       if (text) formData.append('content', text);
 
-      document.getElementById('submitBtn').innerText = 'Generating...';
-      document.getElementById('submitBtn').disabled = true;
+      submitBtn.innerText = 'Generating...';
+      submitBtn.disabled = true;
 
       try {
         const response = await fetch('/api/share', {
@@ -228,31 +228,51 @@
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Upload failed');
+        if (!response.ok) throw new Error(data.error || 'Server error uploading file.');
 
         currentShareUrl = data.shareUrl || `${window.location.origin}/view/${data.id}`;
 
+        // Clear container and render QR reliably
         qrcodeContainer.innerHTML = '';
-
-        await QRCode.toCanvas(qrcodeContainer, currentShareUrl, {
+        new QRCode(qrcodeContainer, {
+          text: currentShareUrl,
           width: 200,
-          margin: 1,
-          color: { dark: '#000000', light: '#ffffff' }
+          height: 200,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
         });
 
         linkDisplay.textContent = currentShareUrl;
         resultArea.style.display = 'block';
 
       } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Upload Error: ' + err.message);
       } finally {
-        document.getElementById('submitBtn').innerText = 'Generate QR';
-        document.getElementById('submitBtn').disabled = false;
+        submitBtn.innerText = 'Generate QR';
+        submitBtn.disabled = false;
       }
     });
 
+    // Helper: extract canvas element safely
+    function getQrCanvas() {
+      const canvas = qrcodeContainer.querySelector('canvas');
+      if (canvas) return canvas;
+
+      const img = qrcodeContainer.querySelector('img');
+      if (img && img.src) {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || 200;
+        c.height = img.naturalHeight || 200;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        return c;
+      }
+      return null;
+    }
+
     // SHARE URL
-    shareUrlBtn.addEventListener('click', async () => {
+    document.getElementById('shareUrlBtn').addEventListener('click', async () => {
       if (navigator.share) {
         try {
           await navigator.share({
@@ -264,65 +284,79 @@
           if (err.name !== 'AbortError') console.error(err);
         }
       } else {
-        alert("This browser doesn't support direct sharing. Link can be copied instead!");
+        await navigator.clipboard.writeText(currentShareUrl);
+        alert('Direct sharing unavailable. URL copied to clipboard!');
       }
     });
 
     // COPY URL
-    copyUrlBtn.addEventListener('click', async () => {
+    document.getElementById('copyUrlBtn').addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(currentShareUrl);
-        const originalText = copyUrlBtn.innerText;
-        copyUrlBtn.innerText = '✅ Copied URL!';
-        setTimeout(() => copyUrlBtn.innerText = originalText, 2000);
+        const btn = document.getElementById('copyUrlBtn');
+        const orig = btn.innerText;
+        btn.innerText = '✅ Copied URL!';
+        setTimeout(() => btn.innerText = orig, 2000);
       } catch (err) {
-        alert('Failed to copy the link.');
+        alert('Failed to copy URL.');
       }
     });
 
-    // SHARE QR CODE IMAGE (using Clipboard & Share Files API)
-    shareQrBtn.addEventListener('click', () => {
-      const canvas = qrcodeContainer.querySelector('canvas');
-      if (!canvas) return;
+    // SHARE QR CODE
+    document.getElementById('shareQrBtn').addEventListener('click', () => {
+      const canvas = getQrCanvas();
+      if (!canvas) {
+        alert('QR code not ready yet.');
+        return;
+      }
+
       canvas.toBlob(async (blob) => {
+        if (!blob) return;
         const file = new File([blob], 'quick-share-qr.png', { type: 'image/png' });
+
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
               files: [file],
               title: 'Quick-Share QR Code',
-              text: 'Scan this code to download files/text'
+              text: 'Scan this QR code to access the files.'
             });
           } catch (err) {
             if (err.name !== 'AbortError') console.error(err);
           }
         } else {
-          alert("Sharing image files directly is not supported in this browser.");
+          alert('Sharing image files is unsupported on this browser. Use "Save QR Image" instead.');
         }
-      });
+      }, 'image/png');
     });
 
-    // COPY QR IMAGE (Binary write to system Clipboard)
-    copyQrBtn.addEventListener('click', () => {
-      const canvas = qrcodeContainer.querySelector('canvas');
-      if (!canvas) return;
+    // COPY QR IMAGE
+    document.getElementById('copyQrBtn').addEventListener('click', () => {
+      const canvas = getQrCanvas();
+      if (!canvas) {
+        alert('QR code not ready yet.');
+        return;
+      }
+
       canvas.toBlob(async (blob) => {
+        if (!blob) return;
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
           ]);
-          const originalText = copyQrBtn.innerText;
-          copyQrBtn.innerText = '✅ Copied QR!';
-          setTimeout(() => copyQrBtn.innerText = originalText, 2000);
+          const btn = document.getElementById('copyQrBtn');
+          const orig = btn.innerText;
+          btn.innerText = '✅ Copied QR!';
+          setTimeout(() => btn.innerText = orig, 2000);
         } catch (err) {
-          alert("Clipboard copy image failed. Please download the QR code image.");
+          alert('Direct image copy not supported in this browser. Please use "Save QR Image".');
         }
-      });
+      }, 'image/png');
     });
 
-    // SAVE/DOWNLOAD QR CODE IMAGE
-    downloadQrBtn.addEventListener('click', () => {
-      const canvas = qrcodeContainer.querySelector('canvas');
+    // SAVE QR IMAGE
+    document.getElementById('downloadQrBtn').addEventListener('click', () => {
+      const canvas = getQrCanvas();
       if (!canvas) return;
       const link = document.createElement('a');
       link.download = 'quick-share-qr.png';
