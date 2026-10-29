@@ -1,0 +1,14 @@
+{
+  "name": "quick-share",
+  "version": "1.0.0",
+  "description": "Universal QR share for text and files",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "multer": "^1.4.5-lts.2",
+    "sqlite3": "^5.1.7"
+  }
+}
