@@ -1,0 +1,168 @@
+/* ============================================================
+   QUICK-SHARE: GLOBAL THEME & BASE STYLES
+   ============================================================ */
+:root {
+  --bg-color: #0d1117;
+  --card-background: #161b22;
+  --primary-accent: #ff7b72;
+  --primary-accent-hover: #f25c54;
+  --download-green: #238636;
+  --download-green-hover: #2ea043;
+  --text-main: #c9d1d9;
+  --text-heading: #f0f6fc;
+  --text-muted: #8b949e;
+  --card-border: #30363d;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 1rem;
+}
+
+/* ============================================================
+   MAIN CONTAINER CARD
+   ============================================================ */
+.quickshare-card {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.quickshare-header-title {
+  margin-top: 0;
+  color: var(--text-heading);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expiry-pill-badge {
+  background: #e3b34133;
+  color: #f2cc60;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #e3b34166;
+}
+
+.quickshare-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+/* ============================================================
+   INPUT FORM ELEMENTS
+   ============================================================ */
+.upload-input-group {
+  margin-bottom: 1.25rem;
+}
+
+.upload-field-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.file-select-control,
+.text-input-control {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-color);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: var(--text-main);
+  font-family: inherit;
+}
+
+.text-input-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.generate-qr-btn {
+  width: 100%;
+  background: var(--primary-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+.generate-qr-btn:hover {
+  background: var(--primary-accent-hover);
+}
+
+/* ============================================================
+   QR RESULT & DOWNLOAD SECTION
+   ============================================================ */
+.qr-output-section {
+  margin-top: 1.5rem;
+  text-align: center;
+  display: none;
+}
+
+.qr-code-graphic {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1rem auto;
+}
+
+.qr-code-graphic img,
+.qr-code-graphic canvas {
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.generated-link-display-box {
+  font-size: 0.8rem;
+  color: #58a6ff;
+  word-break: break-all;
+  margin: 0.5rem 0 1rem 0;
+  background: var(--bg-color);
+  border: 1px solid var(--card-border);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.save-qr-image-btn {
+  width: 100%;
+  padding: 0.75rem;
+  background: var(--download-green);
+  color: #ffffff;
+  border: 1px solid var(--download-green);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s ease-in-out;
+}
+
+.save-qr-image-btn:hover {
+  background: var(--download-green-hover);
+  border-color: var(--download-green-hover);
+}

@@ -1,112 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal QR Share</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick-Share | 24-Hour Temporary Drop</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-lg bg-slate-800 rounded-2xl border border-slate-700 p-6 space-y-5">
-        <header class="text-center">
-            <h1 class="text-2xl font-bold text-teal-400">⚡ Quick Share</h1>
-            <p class="text-xs text-slate-400">QR Code stays active for 24 hours</p>
-        </header>
+<body>
 
-        <!-- Upload View -->
-        <div id="createView" class="space-y-4">
-            <textarea id="textInput" rows="3" placeholder="Paste text or code snippet..."
-                class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:outline-none focus:border-teal-400"></textarea>
+  <main class="quickshare-card">
+    <h1 class="quickshare-header-title">Quick-Share <span class="expiry-pill-badge">24h Auto-Expiry</span></h1>
+    <p class="quickshare-subtitle">
+      Upload a file or paste text to generate a temporary QR code and link.
+    </p>
 
-            <div onclick="document.getElementById('fileInput').click()"
-                class="border-2 border-dashed border-slate-600 hover:border-teal-400 bg-slate-900/40 rounded-xl p-4 text-center cursor-pointer">
-                <input type="file" id="fileInput" class="hidden" onchange="updateFileName(this.files[0])">
-                <p id="fileLabel" class="text-xs text-slate-400">Click to attach .pdf, .docx, .pptx, .xlsx, or image</p>
-            </div>
+    <form id="shareForm">
+      <div class="upload-input-group">
+        <label for="fileInput" class="upload-field-label">Choose File (Optional)</label>
+        <input type="file" id="fileInput" class="file-select-control" name="file" />
+      </div>
 
-            <button onclick="createShare()" id="btn"
-                class="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold py-2.5 rounded-xl transition">
-                Generate  QR Code
-            </button>
+      <div class="upload-input-group">
+        <label for="textInput" class="upload-field-label">Or Paste Text / URL</label>
+        <textarea id="textInput" class="text-input-control" name="content" placeholder="Paste links, messages, notes..."></textarea>
+      </div>
 
-            <!-- QR Output -->
-            <div id="qrPanel" class="hidden text-center space-y-3 pt-4 border-t border-slate-700">
-                <input id="shareUrl" type="text" readonly class="w-full bg-slate-900 border border-slate-700 text-teal-300 text-xs p-2 rounded text-center">
-                <div class="flex justify-center">
-                    <div id="qrcode" class="p-3 bg-white rounded-xl shadow"></div>
-                </div>
-            </div>
-        </div>
+      <button type="submit" id="submitBtn" class="generate-qr-btn">Generate QR</button>
+    </form>
 
-        <!-- Download View (when scanned on mobile) -->
-        <div id="receiveView" class="hidden space-y-4 text-center">
-            <div id="textBlock" class="hidden text-left bg-slate-900 p-4 rounded-xl border border-slate-700">
-                <p id="textOutput" class="text-sm font-mono whitespace-pre-wrap break-words"></p>
-            </div>
-            <div id="fileBlock" class="hidden">
-                <a id="downloadBtn" download class="inline-block bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl">
-                    Download File
-                </a>
-            </div>
-            <a href="/" class="text-xs text-teal-400 underline block pt-2">Share Something Else</a>
-        </div>
-    </div>
+    <section id="resultArea" class="qr-output-section">
+      <div id="qrcode" class="qr-code-graphic"></div>
+      <div id="linkDisplay" class="generated-link-display-box"></div>
+      
+      <button type="button" id="downloadQrBtn" class="save-qr-image-btn">💾 Save QR Image</button>
+    </section>
+  </main>
 
-    <script>
-        let attachedFile = null;
-        function updateFileName(file) {
-            if (file) {
-                attachedFile = file;
-                document.getElementById('fileLabel').innerHTML = `Attached: <strong class="text-teal-400">${file.name}</strong>`;
-            }
-        }
+  <script>
+    const form = document.getElementById('shareForm');
+    const resultArea = document.getElementById('resultArea');
+    const qrcodeContainer = document.getElementById('qrcode');
+    const linkDisplay = document.getElementById('linkDisplay');
+    const submitBtn = document.getElementById('submitBtn');
+    const downloadQrBtn = document.getElementById('downloadQrBtn');
 
-        async function createShare() {
-            const text = document.getElementById('textInput').value;
-            if (!text.trim() && !attachedFile) return alert("Please provide text or a file!");
+    let currentShareUrl = '';
 
-            const fd = new FormData();
-            if (text.trim()) fd.append('content', text);
-            if (attachedFile) fd.append('file', attachedFile);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-            const res = await fetch('/api/share', { method: 'POST', body: fd });
-            const data = await res.json();
+      const file = document.getElementById('fileInput').files[0];
+      const text = document.getElementById('textInput').value.trim();
 
-            if (data.shareUrl) {
-                document.getElementById('shareUrl').value = data.shareUrl;
-                document.getElementById('qrcode').innerHTML = "";
-                new QRCode(document.getElementById("qrcode"), { text: data.shareUrl, width: 150, height: 150 });
-                document.getElementById('qrPanel').classList.remove('hidden');
-            }
-        }
+      if (!file && !text) {
+        alert('Please select a file or enter text.');
+        return;
+      }
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            const id = new URLSearchParams(window.location.search).get('id');
-            if (id) {
-                document.getElementById('createView').classList.add('hidden');
-                document.getElementById('receiveView').classList.remove('hidden');
+      const formData = new FormData();
+      if (file) formData.append('file', file);
+      if (text) formData.append('content', text);
 
-                const res = await fetch(`/api/share/${id}`);
-                if (!res.ok) {
-                    alert("This QR code has expired or does not exist.");
-                    window.location.href = '/';
-                    return;
-                }
-                const data = await res.json();
-                if (data.content) {
-                    document.getElementById('textBlock').classList.remove('hidden');
-                    document.getElementById('textOutput').textContent = data.content;
-                }
-                if (data.fileUrl) {
-                    document.getElementById('fileBlock').classList.remove('hidden');
-                    const btn = document.getElementById('downloadBtn');
-                    btn.href = data.fileUrl;
-                    btn.download = data.fileName;
-                    btn.textContent = `Download ${data.fileName}`;
-                }
-            }
+      submitBtn.innerText = 'Generating...';
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/share', {
+          method: 'POST',
+          body: formData
         });
-    </script>
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Upload failed');
+
+        const rawUrl = data.shareUrl || data.url || data.downloadUrl || 
+                       (data.id ? `/download/${data.id}` : null) || 
+                       (data.fileId ? `/download/${data.fileId}` : null);
+
+        currentShareUrl = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
+
+        qrcodeContainer.innerHTML = '';
+        new QRCode(qrcodeContainer, {
+          text: currentShareUrl,
+          width: 200,
+          height: 200,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        linkDisplay.textContent = currentShareUrl;
+        resultArea.style.display = 'block';
+
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        submitBtn.innerText = 'Generate QR';
+        submitBtn.disabled = false;
+      }
+    });
+
+    function getQrDataUrl() {
+      const canvas = qrcodeContainer.querySelector('canvas');
+      if (canvas) return canvas.toDataURL('image/png');
+
+      const img = qrcodeContainer.querySelector('img');
+      if (img && img.src && img.src.startsWith('data:image')) {
+        return img.src;
+      }
+      return null;
+    }
+
+    downloadQrBtn.addEventListener('click', () => {
+      const dataUrl = getQrDataUrl();
+      if (!dataUrl) {
+        alert('QR code is not ready yet.');
+        return;
+      }
+      const a = document.createElement('a');
+      a.download = 'quick-share-qr.png';
+      a.href = dataUrl;
+      a.click();
+    });
+  </script>
 </body>
 </html>
