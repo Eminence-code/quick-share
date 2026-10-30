@@ -37,7 +37,7 @@
     </section>
   </main>
 
-  <script>
+<script>
     const form = document.getElementById('shareForm');
     const resultArea = document.getElementById('resultArea');
     const qrcodeContainer = document.getElementById('qrcode');
@@ -72,13 +72,29 @@
         });
 
         const data = await response.json();
+        console.log('Server response data:', data);
+
         if (!response.ok) throw new Error(data.error || 'Upload failed');
 
-        const rawUrl = data.shareUrl || data.url || data.downloadUrl || 
-                       (data.id ? `/download/${data.id}` : null) || 
-                       (data.fileId ? `/download/${data.fileId}` : null);
+        // Check every possible key the backend might be sending
+        const resolvedPath = 
+          data.shareUrl || 
+          data.url || 
+          data.downloadUrl || 
+          data.link || 
+          (data.id ? `/download/${data.id}` : null) ||
+          (data.fileId ? `/download/${data.fileId}` : null) ||
+          (data.file ? `/download/${data.file}` : null) ||
+          (data.code ? `/download/${data.code}` : null);
 
-        currentShareUrl = rawUrl.startsWith('http') ? rawUrl : `${window.location.origin}${rawUrl}`;
+        if (!resolvedPath) {
+          alert('Server response missing link. Returned object: ' + JSON.stringify(data));
+          return;
+        }
+
+        currentShareUrl = resolvedPath.startsWith('http') 
+          ? resolvedPath 
+          : `${window.location.origin}${resolvedPath.startsWith('/') ? '' : '/'}${resolvedPath}`;
 
         qrcodeContainer.innerHTML = '';
         new QRCode(qrcodeContainer, {
