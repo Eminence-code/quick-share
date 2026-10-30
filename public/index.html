@@ -47,6 +47,51 @@
 
     let currentShareUrl = '';
 
+    // ============================================================
+    // 1. CHECK IF VISITOR ARRIVED VIA QR CODE LINK (?id=...)
+    // ============================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shareId = urlParams.get('id');
+
+      if (shareId) {
+        // Change the card header and hide upload form to show download view
+        form.style.display = 'none';
+        document.querySelector('.quickshare-subtitle').textContent = 'Loading shared item...';
+
+        try {
+          const res = await fetch(`/api/file/${shareId}`); // or /api/share/${shareId}
+          if (!res.ok) throw new Error('Shared file or text not found or expired.');
+
+          const itemData = await res.json();
+
+          if (itemData.text || itemData.content) {
+            // Display shared text
+            document.querySelector('.quickshare-subtitle').textContent = 'Shared Message:';
+            resultArea.style.display = 'block';
+            linkDisplay.style.fontSize = '1rem';
+            linkDisplay.style.color = '#f0f6fc';
+            linkDisplay.textContent = itemData.text || itemData.content;
+            qrcodeContainer.style.display = 'none';
+            downloadQrBtn.style.display = 'none';
+          } else if (itemData.downloadUrl || itemData.fileUrl || itemData.url) {
+            // Trigger or link direct file download
+            const fileUrl = itemData.downloadUrl || itemData.fileUrl || itemData.url;
+            window.location.href = fileUrl;
+          } else {
+            // Direct download route fallback
+            window.location.href = `/download/${shareId}`;
+          }
+        } catch (err) {
+          // If JSON API route differs, try redirecting directly to download
+          window.location.href = `/download/${shareId}`;
+        }
+      }
+    });
+
+    // ============================================================
+    // 2. FORM SUBMISSION & QR GENERATION
+    // ============================================================
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -72,23 +117,19 @@
         });
 
         const data = await response.json();
-        console.log('Server response data:', data);
-
         if (!response.ok) throw new Error(data.error || 'Upload failed');
 
-        // Check every possible key the backend might be sending
+        // Resolve ID/URL
         const resolvedPath = 
           data.shareUrl || 
           data.url || 
           data.downloadUrl || 
           data.link || 
-          (data.id ? `/download/${data.id}` : null) ||
-          (data.fileId ? `/download/${data.fileId}` : null) ||
-          (data.file ? `/download/${data.file}` : null) ||
-          (data.code ? `/download/${data.code}` : null);
+          (data.id ? `/?id=${data.id}` : null) ||
+          (data.fileId ? `/?id=${data.fileId}` : null);
 
         if (!resolvedPath) {
-          alert('Server response missing link. Returned object: ' + JSON.stringify(data));
+          alert('Missing share URL from server: ' + JSON.stringify(data));
           return;
         }
 
@@ -97,6 +138,7 @@
           : `${window.location.origin}${resolvedPath.startsWith('/') ? '' : '/'}${resolvedPath}`;
 
         qrcodeContainer.innerHTML = '';
+        qrcodeContainer.style.display = 'flex';
         new QRCode(qrcodeContainer, {
           text: currentShareUrl,
           width: 200,
@@ -117,6 +159,9 @@
       }
     });
 
+    // ============================================================
+    // 3. SAVE QR IMAGE
+    // ============================================================
     function getQrDataUrl() {
       const canvas = qrcodeContainer.querySelector('canvas');
       if (canvas) return canvas.toDataURL('image/png');
