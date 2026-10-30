@@ -63,24 +63,44 @@ app.post('/api/share', upload.single('file'), (req, res) => {
 });
 
 // 2. RETRIEVE (Check if < 24 Hours)
-app.get('/api/share/:id', (req, res) => {
-    const shareId = req.params.id;
-    db.get(`SELECT * FROM shares WHERE share_id = ?`, [shareId], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: "Item not found" });
+aapp.get('/download/:id', (req, res) => {
+  const { id } = req.params;
 
-        // Enforce 24-hour expiration (24 * 60 * 60 * 1000 ms)
-        const TWENTY_FOUR_HOURS = 86400000;
-        if (Date.now() - row.created_at > TWENTY_FOUR_HOURS) {
-            return res.status(410).json({ error: "This QR code has expired (older than 24h)." });
-        }
+  db.get('SELECT * FROM shares WHERE id = ?', [id], (err, item) => {
+    if (err || !item) {
+      return res.status(404).send('<h2>File or content not found or expired.</h2>');
+    }
 
-        res.json({
-            content: row.content,
-            fileName: row.original_name,
-            fileUrl: row.stored_name ? `/files/${row.stored_name}` : null
-        });
-    });
+    // 1. If it is stored text / content
+    if (item.content || item.text) {
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Quick-Share Note</title>
+          <link rel="stylesheet" href="/style.css" />
+        </head>
+        <body style="display:flex; justify-content:center; align-items:center; min-height:100vh; background:#0d1117; color:#c9d1d9; font-family:sans-serif; margin:0; padding:1rem;">
+          <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:2rem; max-width:500px; width:100%; word-break:break-word;">
+            <h2 style="color:#f0f6fc; margin-top:0;">Shared Content</h2>
+            <pre style="white-space:pre-wrap; background:#0d1117; padding:1rem; border-radius:6px; border:1px solid #30363d; color:#c9d1d9;">${item.content || item.text}</pre>
+            <a href="/" style="display:inline-block; margin-top:1rem; color:#58a6ff; text-decoration:none;">← Upload another file or text</a>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    // 2. If it is an uploaded file
+    if (item.stored_name) {
+      const filePath = path.join(uploadDir, item.stored_name);
+      return res.download(filePath, item.original_name || 'download');
+    }
+
+    res.status(404).send('<h2>Invalid file record.</h2>');
+  });
 });
 
 // 3. BACKGROUND CLEANUP: Delete expired files every hour
